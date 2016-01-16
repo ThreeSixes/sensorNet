@@ -111,7 +111,7 @@ class SimpleHttpServer():
             logger.log('Start sensor monitor.')
             
             # Start the server thread.
-            self.tnThread = threading.Thread(target=thermalNet.run('dummy'))
+            self.tnThread = threading.Thread(target=thermalNet.run(snConfig['sensorMode']))
             self.tnThread.daemon = True
             self.tnThread.start()
         
