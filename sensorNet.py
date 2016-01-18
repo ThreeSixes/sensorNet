@@ -138,6 +138,7 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
             # Send the HTTP respnose code.
             self.send_response(httpStatus)
             self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             # If we have data.
