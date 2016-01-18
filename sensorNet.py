@@ -27,23 +27,57 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         
         try:
             # If we request the proper thing send it.
-            if None != re.search('^/v1/thermal(/)?$', self.path):
-                try:
+            if None != re.search('^/v1/thermal(/)?(.+)?$', self.path):
+                
+                # Set newData to None by default.
+                newData = None
+                
+                # Get match chunks.
+                chunks = re.match('^/v1/thermal(/)?(.+)?$', self.path)
+                
+                # If we have a URL sans slash...
+                if (chunks.groups()[0] == None) and (chunks.groups()[1] == None):
+                    # Set our HTTP status stuff.
+                    httpStatus = 200
+                    sendData = json.dumps(thermalNet.getReadings()) + "\n"
+                    
+                elif (chunks.groups()[0] == "/") and (chunks.groups()[1] == None):
                     # Set our HTTP status stuff.
                     httpStatus = 200
                     sendData = json.dumps(thermalNet.getReadings()) + "\n"
                 
-                except KeyboardInterrupt:
-                    # Pass it up.
-                    raise KeyboardInterrupt
-                
-                except:
-                    # Set 500 and dump error.
-                    httpStatus = 500
+                elif (chunks.groups()[0] == "/") and (chunks.groups()[1] != None):
+                    # Grab the target sensor
+                    targetSensor = chunks.groups()[1]
                     
-                    # Log the problem.
-                    tb = traceback.format_exc()
-                    logger.log("Failure getting data to send:\n%s" %tb)
+                    try:
+                        # Get the new data from the end of the URL.
+                        newData = {targetSensor: thermalNet.getReadings()[targetSensor]}
+                    
+                    except KeyError:
+                        # Set HTTP 404.
+                        httpStatus = 404
+                        sendData = None
+                    
+                    except Exception as e:
+                        # Pass other exceptions back up.
+                        raise e
+                    
+                    # If we got some new data...
+                    if (newData != None) and (newData != {}):
+                        # Set our HTTP status stuff.
+                        httpStatus = 200
+                        sendData = json.dumps(newData) + "\n"
+                    
+                    else:
+                        # Set HTTP 404.
+                        httpStatus = 404
+                        sendData = None
+                
+                else:
+                    # 404, no data.
+                    httpStatus = 404
+                    sendData = None
             
             # If we request the proper thing send it.
             elif None != re.search('^/v1/sensors(/)?(.+)?$', self.path):
