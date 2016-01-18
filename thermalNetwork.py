@@ -142,15 +142,23 @@ class thermalNetwork:
                 if len(dts) == 19:
                     dts = dts + ".000000"
                 
-                # Update local readings.
-                readings.update({
-                    tgtSens: {
-                        'dts': dts,
-                        'tempReading': self.__tempSens.readTemp(tgtSens),
-                        'loc': self.__sensorSet[tgtSens]['loc'],
-                        'locDetail': self.__sensorSet[tgtSens]['locDetail']
-                    }
-                })
+                try:
+                    # Update local readings.
+                    readings.update({
+                        tgtSens: {
+                            'dts': dts,
+                            'tempReading': self.__tempSens.readTemp(tgtSens),
+                            'loc': self.__sensorSet[tgtSens]['loc'],
+                            'locDetail': self.__sensorSet[tgtSens]['locDetail']
+                        }
+                    })
+                
+                except RuntimeError:
+                    self.__logger.log("Sensor %s CRC error." %tgtSens)
+                
+                except:
+                    tb = traceback.format_exc()
+                    self.__logger.log("Exception reading sensor %s:\n%s" %(tgtSens, tb))
             
             # Set global readings from new values.
             # Note: this is designed to be atomic so both old and new data don't coexist globally.
