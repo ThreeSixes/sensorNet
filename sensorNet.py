@@ -12,6 +12,7 @@ from sensLog import sensLog
 from thermalNetwork import thermalNetwork
 from BaseHTTPServer import BaseHTTPRequestHandler,HTTPServer
 from SocketServer import ThreadingMixIn
+from pprint import pprint
 
 # Override the HTTPRequestHandler
 class HTTPRequestHandler(BaseHTTPRequestHandler):
@@ -43,29 +44,76 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
                     # Log the problem.
                     tb = traceback.format_exc()
                     logger.log("Failure getting data to send:\n%s" %tb)
+            
+            # If we request the proper thing send it.
+            elif None != re.search('^/v1/sensors(/)?(.+)?$', self.path):
                 
-                # Send the HTTP respnose code.
-                self.send_response(httpStatus)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
+                # Get match chunks.
+                chunks = re.match('^/v1/sensors(/)?(.+)?$', self.path)
                 
-                # If we have data.
-                if sendData != None:
-                    # Send the data.
-                    self.wfile.write(sendData)
+                # If we have a URL sans slash...
+                if (chunks.groups()[0] == None) and (chunks.groups()[1] == None):
+                    # Set our HTTP status stuff.
+                    httpStatus = 200
+                    sendData = json.dumps(thermalNet.getSensorMeta()) + "\n"
+                    
+                elif (chunks.groups()[0] == "/") and (chunks.groups()[1] == None):
+                    # Set our HTTP status stuff.
+                    httpStatus = 200
+                    sendData = json.dumps(thermalNet.getSensorMeta()) + "\n"
+                
+                elif (chunks.groups()[0] == "/") and (chunks.groups()[1] != None):
+                    
+                    # Get the new data from the end of the URL.
+                    newData = thermalNet.getSensorMeta(chunks.groups()[1])
+                    
+                    # If we got some new data...
+                    if (newData != None) and (newData != {}):
+                        # Set our HTTP status stuff.
+                        httpStatus = 200
+                        sendData = json.dumps(newData) + "\n"
+                    
+                    else:
+                        # Set HTTP 404.
+                        httpStatus = 404
+                        sendData = None
+                
+                else:
+                    # 404, no data.
+                    httpStatus = 404
+                    sendData = None
+            
             else:
-                # If the request was for a URL that we're not serving return a 404.
-                self.send_response(404)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
+                # 404, no data.
+                httpStatus = 404
+                sendData = None
         
         except KeyboardInterrupt:
             # Pass it up.
             raise KeyboardInterrupt
         
         except:
+            # HTTP 500.
+            httpStatus = 500
+            sendData = None
+            
             tb = traceback.format_exc()
             logger.log("Caught exception in do_get():\n%s" %tb)
+        
+        try:
+            # Send the HTTP respnose code.
+            self.send_response(httpStatus)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            
+            # If we have data.
+            if sendData != None:
+                # Send the data.
+                self.wfile.write(sendData)
+        
+        except:
+            tb = traceback.format_exc()
+            logger.log("Caught exception trying to send HTTP response:\n%s" %tb)
         
         return
     
@@ -167,7 +215,7 @@ if __name__ == '__main__':
         for sensor in snConfig['sensors']:
             try:
                 # Register each sensor.
-                thermalNet.registerSensor(snConfig['sensors'][sensor]['loc'], snConfig['sensors'][sensor]['locDetail'], sensor)
+                thermalNet.registerSensor(sensor, snConfig['sensors'][sensor]['loc'], snConfig['sensors'][sensor]['locDetail'], snConfig['sensors'][sensor]['sensorMeta'])
             
             except:
                 tb = traceback.format_exc()

@@ -54,7 +54,7 @@ class thermalNetwork:
         
         return
     
-    def registerSensor(self, generalLoc, locDetail, address):
+    def registerSensor(self, address, generalLoc, locDetail, meta):
         """
         Register a new temperature sensor
         Accepts a sensor name and address.
@@ -62,7 +62,7 @@ class thermalNetwork:
         
         try:
             # Register the sensor in the dictionary.
-            self.__sensorSet.update({address: {'loc': generalLoc, 'locDetail': locDetail}})
+            self.__sensorSet.update({address: {'loc': generalLoc, 'locDetail': locDetail, 'sensorMeta': meta}})
             
             # Debug?
             if self.__debugOn:
@@ -71,6 +71,37 @@ class thermalNetwork:
         except Exception as e:
             # Just pass whatever happened back up.
             raise e
+    
+    def getSensorMeta(self, target='all'):
+        """
+        Get sensor metadata as a dictionary.
+        """
+        
+        # Create an empty return value.
+        retVal = None
+        
+        try:
+            # If we are supposed to scan all the sensors then scan them.
+            if target == 'all':
+                # Create a blank dictionary to get the sensor data going.
+                retVal = {}
+                
+                # Loop and build the list.
+                for sensor in self.__sensorSet:
+                    # Keep adding sensor metadata to the dictionary.
+                    retVal.update({sensor: self.__sensorSet[sensor]['sensorMeta']})
+            
+            else:
+                # Return data for the target server.
+                if target in self.__sensorSet:
+                    # Get the target sensor.
+                    retVal = {target: self.__sensorSet[target]['sensorMeta']}
+        
+        except:
+            tb = traceback.format_exc()
+            self.__logger.log("Caught exception trying to get sensor meta:\n%s" %tb)
+        
+        return retVal
     
     def getReadings(self):
         """
@@ -150,7 +181,7 @@ class thermalNetwork:
                 readings.update({
                     tgtSens: {
                         'time': dts,
-                        'tempReading': random.randint(-10, 125),
+                        'tempReading': random.randint(self.__sensorSet[tgtSens]['sensorMeta']['min'], self.__sensorSet[tgtSens]['sensorMeta']['max']),
                         'loc': self.__sensorSet[tgtSens]['loc'],
                         'locDetail': self.__sensorSet[tgtSens]['locDetail']
                     }
@@ -338,15 +369,26 @@ if __name__ == '__main__':
     # Set debuggging.
     thermalNet.setDebug(True)
     
+    # Generic device metadata for a DS18B20...
+    ds18b20Meta = {
+        'sensor': 'DS18B20',
+        'cap': 'temp',
+        'accuracy': '0.5',
+        'unit': 'C',
+        'min': -55,
+        'max': 125,
+        'interface': '1Wire'
+    }
+    
     try:
         # Register the water bath sensor.
-        thermalNet.registerSensor('outside', 'west face', '28-000006de8409')
-        thermalNet.registerSensor('basement living room', 'west wall', '28-04146918b4ff')
-        thermalNet.registerSensor('basement bedroom', 'south wall', '28-041469030cff')
-        thermalNet.registerSensor('basement stove', 'blower pocket', '28-0000068e7983')
-        thermalNet.registerSensor('basement lab', 'south wall', '28-041469018aff')
-        thermalNet.registerSensor('basement bar', 'north wall', '28-0414691c50ff')
-        thermalNet.registerSensor('basement restroom', 'south wall', '28-03146444d4ff')
+        thermalNet.registerSensor('28-000006de8409', 'outside', 'west face', ds18b20Meta)
+        thermalNet.registerSensor('28-04146918b4ff', 'basement living room', 'west wall', ds18b20Meta)
+        thermalNet.registerSensor('28-041469030cff', 'basement bedroom', 'south wall', ds18b20Meta)
+        thermalNet.registerSensor('28-0000068e7983', 'basement stove', 'blower pocket', ds18b20Meta)
+        thermalNet.registerSensor('28-041469018aff', 'basement lab', 'south wall', ds18b20Meta)
+        thermalNet.registerSensor('28-0414691c50ff', 'basement bar', 'north wall', ds18b20Meta)
+        thermalNet.registerSensor('28-03146444d4ff', 'basement restroom', 'south wall', ds18b20Meta)
     
     except KeyboardInterrupt:
         self.__logger.log('Got keyboard interrupt. Quitting.')
