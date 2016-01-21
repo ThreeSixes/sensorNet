@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 try:
     import config
 except:
